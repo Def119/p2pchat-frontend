@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/contexts/AuthContext';
+import { router } from 'expo-router';
 import React from 'react';
 import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 
@@ -58,8 +59,8 @@ export default function ChatsScreen() {
     </TouchableOpacity>
   );
 
-  return (
-    <ThemedView style={styles.container}>
+  const renderHeader = () => (
+    <>
       <View style={styles.header}>
         <View>
           <ThemedText style={styles.title}>Whispr</ThemedText>
@@ -77,23 +78,40 @@ export default function ChatsScreen() {
           <ThemedText style={styles.encryptionText}>🔐 End-to-End Encrypted</ThemedText>
         </View>
       </View>
+    </>
+  );
 
+  const renderFooter = () => (
+    <View style={styles.emptyState}>
+      <ThemedText style={styles.emptyText}>
+        Start a new conversation to begin chatting securely
+      </ThemedText>
+      <TouchableOpacity style={styles.newChatButton}>
+        <ThemedText style={styles.newChatText}>+ New Chat</ThemedText>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <ThemedView style={styles.container}>
       <FlatList
         data={mockChats}
         renderItem={renderChatItem}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={renderHeader}
+        ListFooterComponent={renderFooter}
         style={styles.chatList}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}
       />
 
-      <View style={styles.emptyState}>
-        <ThemedText style={styles.emptyText}>
-          Start a new conversation to begin chatting securely
-        </ThemedText>
-        <TouchableOpacity style={styles.newChatButton}>
-          <ThemedText style={styles.newChatText}>+ New Chat</ThemedText>
-        </TouchableOpacity>
-      </View>
+      {/* Floating Action Button */}
+      <TouchableOpacity 
+        style={styles.floatingButton}
+        onPress={() => router.push('/scanner')}
+      >
+        <ThemedText style={styles.floatingButtonText}>📷</ThemedText>
+      </TouchableOpacity>
     </ThemedView>
   );
 }
@@ -102,6 +120,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: 60,
+  },
+  contentContainer: {
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',
@@ -235,5 +256,25 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+  floatingButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  floatingButtonText: {
+    fontSize: 24,
+    color: 'white',
   },
 });

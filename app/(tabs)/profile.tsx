@@ -1,8 +1,10 @@
+import QRShareComponent from '@/components/QRShareComponent';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/contexts/AuthContext';
 import { getPrivateKey, getPublicKey, hasKeys } from '@/lib/crypto-forge';
 import * as FileSystem from 'expo-file-system';
+import { router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -333,6 +335,51 @@ ${publicKey || 'Not found - please sync public key'}
             </TouchableOpacity>
           </View>
         </View>
+        
+
+        {/* QR Code Sharing Section */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>Share Contact</ThemedText>
+          <QRShareComponent />
+        </View>
+
+        {/* Add Contact Section */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>Add Contact</ThemedText>
+          
+          <View style={styles.scannerSection}>
+            <ThemedText style={styles.qrDescription}>
+              Scan someone's QR code to add them securely
+            </ThemedText>
+            
+            <TouchableOpacity 
+              style={[styles.refreshButton, { backgroundColor: '#059669', marginTop: 12 }]} 
+              onPress={() => {
+                router.push('/scanner');
+              }}
+            >
+              <ThemedText style={styles.refreshText}>📷 Scan QR Code</ThemedText>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.refreshButton, { backgroundColor: '#0891b2', marginTop: 8 }]} 
+              onPress={() => {
+                Alert.alert(
+                  'Manual Contact Entry',
+                  'Enter contact details manually:\n\n• Email address\n• Public key (PEM format)\n• Optional: Display name',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Add Manually', onPress: () => {
+                      Alert.alert('Coming Soon', 'Manual contact entry will be implemented in the next update');
+                    }}
+                  ]
+                );
+              }}
+            >
+              <ThemedText style={styles.refreshText}>✏️ Add Manually</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>About</ThemedText>
@@ -561,5 +608,67 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '600',
+  },
+  qrSection: {
+    backgroundColor: '#eef2ff',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    alignItems: 'center',
+  },
+  qrDescription: {
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: 'center',
+    lineHeight: 20,
+    opacity: 0.8,
+  },
+  qrContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  qrCodeWrapper: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    overflow: 'hidden',
+    elevation: 2,
+  },
+  qrInfo: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 8,
+  },
+  qrSubInfo: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  qrPlaceholder: {
+    backgroundColor: '#f3f4f6',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 200,
+    marginTop: 12,
+  },
+  qrPlaceholderText: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  scannerSection: {
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  scannerDescription: {
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+    lineHeight: 20,
+    opacity: 0.8,
   },
 });
