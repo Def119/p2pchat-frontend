@@ -1,4 +1,3 @@
-import { Buffer } from 'buffer';
 import * as SecureStore from 'expo-secure-store';
 import * as forge from 'node-forge';
 import 'react-native-get-random-values';
@@ -6,6 +5,41 @@ import 'react-native-get-random-values';
 export interface KeyPair {
   publicKey: string;
   privateKey: string;
+}
+
+/**
+ * Store private key securely, handling size limitations by chunking
+ */
+async function storePrivateKeySecurely(privateKey: string): Promise<void> {
+  try {
+    // If key is too large (>2048 bytes), split it
+    if (privateKey.length > 2000) {
+      console.log('🔑 Large key detected, splitting for storage...');
+      const chunkSize = 2000;
+      const chunks = [];
+      
+      for (let i = 0; i < privateKey.length; i += chunkSize) {
+        chunks.push(privateKey.substring(i, i + chunkSize));
+      }
+      
+      // Store number of chunks
+      await SecureStore.setItemAsync('privateKey_chunks', chunks.length.toString());
+      
+      // Store each chunk
+      for (let i = 0; i < chunks.length; i++) {
+        await SecureStore.setItemAsync(`privateKey_${i}`, chunks[i]);
+      }
+      
+      console.log(`🔑 Private key stored in ${chunks.length} chunks`);
+    } else {
+      // Store normally if small enough
+      await SecureStore.setItemAsync('privateKey', privateKey);
+      console.log('🔑 Private key stored normally');
+    }
+  } catch (error) {
+    console.error('❌ Error storing private key:', error);
+    throw error;
+  }
 }
 
 /**
@@ -41,75 +75,9 @@ export async function generateKeyPair(): Promise<KeyPair> {
     throw new Error('Failed to generate encryption keys: ' + (error as Error).message);
   }
 }
-      console.log('🔑 Using RSA library...');
-      const rsaKeys = await RSA.generateKeys(2048);
-      
-      if (!rsaKeys || !rsaKeys.private || !rsaKeys.public) {
-        throw new Error('RSA key generation failed - received invalid keys');
-      }
-      
-      keys = {
-        publicKey: rsaKeys.public,
-        privateKey: rsaKeys.private,
-      };
-    } else {
-      // Use fallback implementation
-      console.log('🔑 RSA library not available, using fallback...');
-      keys = await generateFallbackKeys();
-    }
-    
-    console.log('🔑 Keys generated successfully');
-    console.log('🔑 Private key length:', keys.privateKey.length);
-    console.log('🔑 Public key length:', keys.publicKey.length);
-    
-    // Handle large key storage by splitting if necessary
-    await storePrivateKeySecurely(keys.privateKey);
-    console.log('🔑 Keys stored successfully');
-    
-    return keys;
-  } catch (error) {
-    console.error('❌ Error generating key pair:', error);
-    throw new Error('Failed to generate encryption keys: ' + (error as Error).message);
-  }
-}
 
 /**
- * Store private key securely, handling size limitations
- */
-async function storePrivateKeySecurely(privateKey: string): Promise<void> {
-  try {
-    // If key is too large (>2048 bytes), split it
-    if (privateKey.length > 2000) {
-      console.log('🔑 Large key detected, splitting for storage...');
-      const chunkSize = 2000;
-      const chunks = [];
-      
-      for (let i = 0; i < privateKey.length; i += chunkSize) {
-        chunks.push(privateKey.substring(i, i + chunkSize));
-      }
-      
-      // Store number of chunks
-      await SecureStore.setItemAsync('privateKey_chunks', chunks.length.toString());
-      
-      // Store each chunk
-      for (let i = 0; i < chunks.length; i++) {
-        await SecureStore.setItemAsync(`privateKey_${i}`, chunks[i]);
-      }
-      
-      console.log(`🔑 Private key stored in ${chunks.length} chunks`);
-    } else {
-      // Store normally if small enough
-      await SecureStore.setItemAsync('privateKey', privateKey);
-      console.log('🔑 Private key stored normally');
-    }
-  } catch (error) {
-    console.error('❌ Error storing private key:', error);
-    throw error;
-  }
-}
-
-/**
- * Get stored private key
+ * Get stored private key, handling chunked storage
  */
 export async function getPrivateKey(): Promise<string | null> {
   try {
@@ -173,7 +141,7 @@ export async function getPublicKey(): Promise<string | null> {
  */
 export async function hasKeys(): Promise<boolean> {
   try {
-    const privateKey = await SecureStore.getItemAsync('privateKey');
+    const privateKey = await getPrivateKey();
     return !!privateKey;
   } catch (error) {
     console.error('❌ Error checking keys:', error);
@@ -182,22 +150,23 @@ export async function hasKeys(): Promise<boolean> {
 }
 
 /**
- * Encrypt a message using the recipient's public key
+ * Encrypt a message using the recipient's public key (node-forge)
  */
-export async function encryptMessage(message: string, publicKey: string): Promise<string> {
+export async function encryptMessage(message: string, publicKeyPem: string): Promise<string> {
   try {
-    console.log('🔐 Encrypting message...');
+    console.log('🔐 Encrypting message with node-forge...');
     
-    if (RSA && typeof RSA.encrypt === 'function') {
-      const encrypted = await RSA.encrypt(message, publicKey);
-      console.log('🔐 Message encrypted with RSA');
-      return encrypted;
-    } else {
-      // Fallback: simple base64 encoding for development
-      console.log('🔐 Using fallback encryption (base64)...');
-      const encoded = Buffer.from(message, 'utf8').toString('base64');
-      return `FALLBACK:${encoded}`;
-    }
+    // Parse the PEM public key
+    const publicKey = forge.pki.publicKeyFromPem(publicKeyPem);
+    
+    // Encrypt the message
+    const encrypted = publicKey.encrypt(message, 'RSA-OAEP');
+    
+    // Convert to base64 for storage/transmission
+    const encryptedBase64 = forge.util.encode64(encrypted);
+    
+    console.log('🔐 Message encrypted successfully');
+    return encryptedBase64;
   } catch (error) {
     console.error('❌ Error encrypting message:', error);
     throw new Error('Failed to encrypt message: ' + (error as Error).message);
@@ -205,26 +174,23 @@ export async function encryptMessage(message: string, publicKey: string): Promis
 }
 
 /**
- * Decrypt a message using the user's private key
+ * Decrypt a message using the user's private key (node-forge)
  */
-export async function decryptMessage(encryptedMessage: string, privateKey: string): Promise<string> {
+export async function decryptMessage(encryptedBase64: string, privateKeyPem: string): Promise<string> {
   try {
-    console.log('🔓 Decrypting message...');
+    console.log('🔓 Decrypting message with node-forge...');
     
-    // Check if it's a fallback encrypted message
-    if (encryptedMessage.startsWith('FALLBACK:')) {
-      console.log('🔓 Using fallback decryption (base64)...');
-      const encoded = encryptedMessage.replace('FALLBACK:', '');
-      return Buffer.from(encoded, 'base64').toString('utf8');
-    }
+    // Parse the PEM private key
+    const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
     
-    if (RSA && typeof RSA.decrypt === 'function') {
-      const decrypted = await RSA.decrypt(encryptedMessage, privateKey);
-      console.log('🔓 Message decrypted with RSA');
-      return decrypted;
-    } else {
-      throw new Error('Cannot decrypt RSA message without RSA library');
-    }
+    // Decode from base64
+    const encrypted = forge.util.decode64(encryptedBase64);
+    
+    // Decrypt the message
+    const decrypted = privateKey.decrypt(encrypted, 'RSA-OAEP');
+    
+    console.log('🔓 Message decrypted successfully');
+    return decrypted;
   } catch (error) {
     console.error('❌ Error decrypting message:', error);
     throw new Error('Failed to decrypt message: ' + (error as Error).message);
@@ -257,5 +223,43 @@ export async function clearKeys(): Promise<void> {
     console.log('🗑️ Encryption keys cleared');
   } catch (error) {
     console.error('❌ Error clearing keys:', error);
+  }
+}
+
+/**
+ * Validate if a string is a valid PEM key
+ */
+export function validatePemKey(pemKey: string, type: 'public' | 'private'): boolean {
+  try {
+    if (type === 'public') {
+      forge.pki.publicKeyFromPem(pemKey);
+    } else {
+      forge.pki.privateKeyFromPem(pemKey);
+    }
+    return true;
+  } catch (error) {
+    console.error(`❌ Invalid ${type} key format:`, error);
+    return false;
+  }
+}
+
+/**
+ * Get key information (modulus, exponent, etc.)
+ */
+export function getKeyInfo(privateKeyPem: string): any {
+  try {
+    const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
+    const publicKey = forge.pki.rsa.setPublicKey(privateKey.n, privateKey.e);
+    
+    return {
+      keySize: privateKey.n.bitLength(),
+      modulus: privateKey.n.toString(16),
+      publicExponent: privateKey.e.toString(),
+      algorithm: 'RSA',
+      format: 'PEM ASN.1'
+    };
+  } catch (error) {
+    console.error('❌ Error getting key info:', error);
+    return null;
   }
 }

@@ -1,6 +1,6 @@
 import { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { clearKeys, generateKeyPair } from '../lib/crypto';
+import { clearKeys, generateKeyPair } from '../lib/crypto-forge';
 import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
