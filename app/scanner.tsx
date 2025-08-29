@@ -1,8 +1,8 @@
+import QRScannerComponent from '@/components/QRScannerComponent';
+import { ThemedView } from '@/components/ThemedView';
+import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { ThemedView } from '@/components/ThemedView';
-import QRScannerComponent from '@/components/QRScannerComponent';
-import { router } from 'expo-router';
 
 export default function ScannerScreen() {
   const handleContactAdded = (contact: any) => {
