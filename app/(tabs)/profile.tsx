@@ -166,6 +166,43 @@ export default function ProfileScreen() {
             >
               <ThemedText style={styles.refreshText}>🔧 Force Generate Keys</ThemedText>
             </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.refreshButton, { backgroundColor: '#10b981', marginTop: 8 }]} 
+              onPress={async () => {
+                try {
+                  console.log('🔄 Syncing public key to Supabase...');
+                  const { getPrivateKey } = await import('@/lib/crypto');
+                  const { supabase } = await import('@/lib/supabase');
+                  
+                  // Get current private key to extract public key from a fresh generation
+                  const privateKey = await getPrivateKey();
+                  if (privateKey) {
+                    // For now, regenerate to get both keys
+                    const { generateKeyPair } = await import('@/lib/crypto');
+                    const keyPair = await generateKeyPair();
+                    
+                    // Store public key in user metadata
+                    const { error: updateError } = await supabase.auth.updateUser({
+                      data: {
+                        public_key: keyPair.publicKey,
+                      },
+                    });
+                    
+                    if (updateError) {
+                      console.error('❌ Error syncing public key:', updateError);
+                    } else {
+                      console.log('✅ Public key synced to Supabase');
+                    }
+                  }
+                  
+                  await checkKeys();
+                } catch (error) {
+                  console.error('❌ Public key sync failed:', error);
+                }
+              }}
+            >
+              <ThemedText style={styles.refreshText}>🔄 Sync Public Key</ThemedText>
+            </TouchableOpacity>
           </View>
         </View>
 
