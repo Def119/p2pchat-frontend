@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "p2pchat-frontend",
-    "slug": "p2pchat-frontend",
+    "name": "Whispr",
+    "slug": "whispr",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "p2pchatfrontend",
+    "scheme": "whispr",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
