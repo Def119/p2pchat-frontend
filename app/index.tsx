@@ -3,9 +3,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Redirect } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
-export default function Index() {
+export default function  App() {
   const { user, loading } = useAuth();
-
+  
+  console.log("Index mounted", { user, loading });
   if (loading) {
     return (
       <View style={styles.container}>
